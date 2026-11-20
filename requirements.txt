@@ -1,0 +1,10 @@
+streamlit>=1.38.0
+pypdf>=5.0.0
+google-genai>=1.0.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+pandas>=2.0.0
+pydantic>=2.0.0
+reportlab>=4.0.0
+duckduckgo_search>=7.0.0
+ddgs>=9.0.0
