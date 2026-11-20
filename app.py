@@ -1,8 +1,8 @@
 """
 app.py
 Enterprise-Grade Fact-Checking & Pre-Publication Risk Gatekeeper: Truth Layer.
-Verifies factual claims inside uploaded PDF documents against live web data.
-Built for deployment on Streamlit Community Cloud and Render.
+Featuring modern Obsidian-Cyber Executive styling, visual charts (Altair),
+interactive document redlines, and downloadable PDF compliance certificates.
 """
 
 import os
@@ -11,6 +11,7 @@ import json
 import hashlib
 from datetime import datetime
 import pandas as pd
+import altair as alt
 import streamlit as st
 
 # Ensure repository root is on sys.path
@@ -33,179 +34,279 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------
-# Custom Styling (Executive C-Suite & Enterprise UI Theme)
+# Custom Styling: Obsidian-Cyber Executive Dark Theme
 # ---------------------------------------------------------
 st.markdown("""
 <style>
-    /* Metric Cards */
-    .metric-container {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 16px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    /* Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    code, pre {
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Main Container Padding */
+    .block-container {
+        padding-top: 1.8rem;
+        padding-bottom: 3.5rem;
+        max-width: 1280px;
+    }
+
+    /* Gradient Hero Header */
+    .hero-title {
+        font-size: 2.6rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        background: linear-gradient(135deg, #FFFFFF 0%, #A5B4FC 50%, #818CF8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 6px;
+        line-height: 1.15;
+    }
+    .hero-subtitle {
+        font-size: 1.05rem;
+        color: #94A3B8;
+        line-height: 1.6;
+        margin-bottom: 16px;
+    }
+    .hero-pills {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+    }
+    .hero-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(99, 102, 241, 0.12);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 9999px;
+        padding: 4px 12px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #C7D2FE;
+        letter-spacing: 0.02em;
+    }
+
+    /* Glassmorphism Metric Cards */
+    .metric-card-glass {
+        background: rgba(19, 27, 46, 0.7);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.07);
+        border-radius: 14px;
+        padding: 18px 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
         text-align: center;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
-    .metric-value {
-        font-size: 2.1rem;
-        font-weight: 700;
-        margin-bottom: 4px;
+    .metric-card-glass:hover {
+        transform: translateY(-2px);
+        border-color: rgba(99, 102, 241, 0.4);
+        box-shadow: 0 8px 30px rgba(99, 102, 241, 0.15);
+    }
+    .metric-num {
+        font-size: 2.2rem;
+        font-weight: 800;
         line-height: 1.1;
+        letter-spacing: -0.02em;
+        margin-bottom: 4px;
     }
-    .metric-label {
-        font-size: 0.8rem;
+    .metric-lbl {
+        font-size: 0.78rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: #64748B;
+        letter-spacing: 0.06em;
+        color: #94A3B8;
     }
-    
-    /* Clearance Banner */
-    .clearance-banner {
-        border-radius: 10px;
-        padding: 16px 20px;
-        margin-bottom: 20px;
+
+    /* Executive Clearance Banners */
+    .clearance-glow-banner {
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-top: 10px;
+        margin-bottom: 22px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        backdrop-filter: blur(12px);
+        border-width: 1.5px;
+        border-style: solid;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
     }
-    .clearance-passed {
-        background: #F0FDF4;
-        border: 1.5px solid #22C55E;
-        color: #15803D;
+    .clearance-glow-passed {
+        background: radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.18) 0%, rgba(15, 23, 42, 0.8) 90%);
+        border-color: rgba(16, 185, 129, 0.6);
+        color: #E2E8F0;
     }
-    .clearance-conditional {
-        background: #FFFBEB;
-        border: 1.5px solid #F59E0B;
-        color: #B45309;
+    .clearance-glow-conditional {
+        background: radial-gradient(circle at 10% 20%, rgba(245, 158, 11, 0.18) 0%, rgba(15, 23, 42, 0.8) 90%);
+        border-color: rgba(245, 158, 11, 0.6);
+        color: #E2E8F0;
     }
-    .clearance-rejected {
-        background: #FEF2F2;
-        border: 1.5px solid #EF4444;
-        color: #B91C1C;
-    }
-
-    /* Status Badges */
-    .badge-verified {
-        background-color: #DEF7EC;
-        color: #03543F;
-        border: 1px solid #31C48D;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 0.8rem;
-        display: inline-block;
-    }
-    .badge-inaccurate {
-        background-color: #FEF08A;
-        color: #854D0E;
-        border: 1px solid #FACC15;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 0.8rem;
-        display: inline-block;
-    }
-    .badge-false {
-        background-color: #FDE8E8;
-        color: #9B1C1C;
-        border: 1px solid #F98080;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-weight: 700;
-        font-size: 0.8rem;
-        display: inline-block;
+    .clearance-glow-rejected {
+        background: radial-gradient(circle at 10% 20%, rgba(239, 68, 68, 0.18) 0%, rgba(15, 23, 42, 0.8) 90%);
+        border-color: rgba(239, 68, 68, 0.6);
+        color: #E2E8F0;
     }
 
-    /* Claim Result Cards */
-    .claim-card {
-        background: #FFFFFF;
-        border: 1px solid #CBD5E1;
-        border-radius: 12px;
-        padding: 18px 20px;
+    /* Badges */
+    .badge-neon-verified {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34D399;
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-weight: 700;
+        font-size: 0.78rem;
+        letter-spacing: 0.03em;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .badge-neon-inaccurate {
+        background: rgba(245, 158, 11, 0.15);
+        color: #FBBF24;
+        border: 1px solid rgba(245, 158, 11, 0.4);
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-weight: 700;
+        font-size: 0.78rem;
+        letter-spacing: 0.03em;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .badge-neon-false {
+        background: rgba(239, 68, 68, 0.15);
+        color: #F87171;
+        border: 1px solid rgba(239, 68, 68, 0.4);
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-weight: 700;
+        font-size: 0.78rem;
+        letter-spacing: 0.03em;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+    /* Claim Inspection Cards */
+    .claim-card-dark {
+        background: rgba(19, 27, 46, 0.75);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 20px 22px;
         margin-bottom: 16px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        transition: all 0.2s ease-in-out;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
     }
-    .claim-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-        border-color: #94A3B8;
+    .claim-card-dark:hover {
+        border-color: rgba(129, 140, 248, 0.4);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     }
-    .claim-quote {
-        font-size: 1.05rem;
+    .claim-text-title {
+        font-size: 1.08rem;
         font-weight: 600;
-        color: #1E293B;
+        color: #F8FAFC;
         line-height: 1.5;
-        margin-bottom: 10px;
-    }
-    .correction-box {
-        background-color: #FFFBEB;
-        border-left: 4px solid #F59E0B;
-        padding: 12px 16px;
-        border-radius: 6px;
         margin-top: 10px;
-        margin-bottom: 10px;
-        font-size: 0.95rem;
-        color: #92400E;
+        margin-bottom: 12px;
     }
-    .evidence-box {
-        background-color: #F8FAFC;
-        border-left: 4px solid #64748B;
-        padding: 10px 14px;
-        border-radius: 6px;
+    .correction-box-glow {
+        background: rgba(245, 158, 11, 0.08);
+        border-left: 4px solid #F59E0B;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-top: 10px;
+        margin-bottom: 12px;
+        color: #FDE68A;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+    .evidence-box-dark {
+        background: rgba(15, 23, 42, 0.6);
+        border-left: 4px solid #6366F1;
+        border-radius: 8px;
+        padding: 12px 16px;
         margin-top: 8px;
         font-size: 0.9rem;
-        color: #475569;
+        color: #CBD5E1;
+        line-height: 1.5;
     }
-    .source-pill {
-        display: inline-block;
-        background: #EFF6FF;
-        border: 1px solid #BFDBFE;
-        border-radius: 6px;
-        padding: 3px 8px;
+    .source-pill-dark {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 8px;
+        padding: 4px 10px;
         font-size: 0.8rem;
-        color: #1D4ED8;
+        color: #A5B4FC;
         text-decoration: none;
-        margin-right: 6px;
-        margin-top: 6px;
+        margin-right: 8px;
+        margin-top: 8px;
+        transition: all 0.15s ease;
     }
-    .source-pill:hover {
-        background: #DBEAFE;
+    .source-pill-dark:hover {
+        background: rgba(99, 102, 241, 0.3);
+        color: #FFFFFF;
+        text-decoration: none;
     }
 
-    /* Redline Track-Changes Styling */
-    .redline-doc-card {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 24px;
-        line-height: 1.8;
-        font-size: 1.02rem;
-        color: #1E293B;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    /* Redline Track Changes Document Card */
+    .redline-canvas {
+        background: rgba(19, 27, 46, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 28px;
+        line-height: 1.9;
+        font-size: 1.03rem;
+        color: #E2E8F0;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     }
     .redline-del {
-        background-color: #FEE2E2;
-        color: #991B1B;
+        background-color: rgba(239, 68, 68, 0.2);
+        color: #FCA5A5;
         text-decoration: line-through;
-        padding: 2px 6px;
-        border-radius: 4px;
+        padding: 3px 8px;
+        border-radius: 6px;
         font-weight: 500;
+        border: 1px dashed rgba(239, 68, 68, 0.4);
     }
     .redline-ins {
-        background-color: #DCFCE7;
-        color: #166534;
-        padding: 2px 6px;
-        border-radius: 4px;
+        background-color: rgba(16, 185, 129, 0.2);
+        color: #6EE7B7;
+        padding: 3px 8px;
+        border-radius: 6px;
         font-weight: 600;
-        border-bottom: 2px solid #22C55E;
+        border: 1px solid rgba(16, 185, 129, 0.5);
     }
     .redline-verified {
-        background-color: #F0FDF4;
-        color: #15803D;
-        padding: 2px 4px;
+        background-color: rgba(16, 185, 129, 0.08);
+        color: #A7F3D0;
+        padding: 2px 6px;
         border-radius: 4px;
-        border-bottom: 1px dashed #22C55E;
+        border-bottom: 1.5px solid #10B981;
+    }
+
+    /* Preset Selection Cards */
+    .preset-card {
+        background: rgba(19, 27, 46, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin-bottom: 10px;
+        transition: all 0.2s ease;
+    }
+    .preset-card:hover {
+        border-color: rgba(99, 102, 241, 0.5);
+        background: rgba(25, 36, 61, 0.8);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -215,7 +316,7 @@ st.markdown("""
 # ---------------------------------------------------------
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/shield.png", width=64)
-    st.title("TruthLayer Enterprise")
+    st.markdown("### **TruthLayer Enterprise**")
     st.caption("AI-Powered Due-Diligence & Fact Gatekeeper")
     st.markdown("---")
 
@@ -233,7 +334,7 @@ with st.sidebar:
         "Gemini API Key (Optional)",
         value=default_gemini_key,
         type="password",
-        help="Enables Google Search Grounding with Gemini 2.0/2.5. If empty, the app runs on the built-in Live Web Engine (Wikipedia + DuckDuckGo)."
+        help="Enables Google Search Grounding with Gemini 2.0/2.5. If empty, runs on the built-in zero-cost Live Web Engine."
     )
 
     tavily_key = st.text_input(
@@ -246,23 +347,23 @@ with st.sidebar:
     if gemini_key:
         st.success("🟢 Google Search Grounding Active")
     else:
-        st.info("🌐 Keyless Live Web Engine Active (Zero-Cost Mode)")
+        st.info("🌐 Keyless Live Web Engine (Zero-Cost Mode)")
 
     st.markdown("---")
-    st.subheader("🏢 Enterprise Use Cases")
+    st.subheader("🏢 Target Audit Scenarios")
     st.markdown("""
-    - **Investor Decks & TAM Audits**
-    - **Corporate Whitepapers & ESG**
-    - **Pre-Press Marketing Compliance**
-    - **Procurement & RFP Vetting**
+    - 🦄 **Investor Decks & TAM Claims**
+    - 🌱 **ESG & Climate Compliance**
+    - 📄 **Marketing Collateral & Whitepapers**
+    - ⚖️ **Procurement & Vendor Vetting**
     """)
 
     st.markdown("---")
-    st.caption("Developed by Anshika Arora")
-    st.caption("Production-Ready Architecture & CI/CD Validated")
+    st.caption("Engineered by **Anshika Arora**")
+    st.caption("Production Architecture & CI/CD Validated")
 
 # ---------------------------------------------------------
-# Session State Initialization
+# Session State Initialization & Fixtures
 # ---------------------------------------------------------
 if "doc_summary" not in st.session_state:
     st.session_state.doc_summary = None
@@ -273,7 +374,6 @@ if "report" not in st.session_state:
 if "raw_text" not in st.session_state:
     st.session_state.raw_text = ""
 
-# Ensure sample files exist
 sample_dir = os.path.join(os.path.dirname(__file__), "sample_data")
 os.makedirs(sample_dir, exist_ok=True)
 trap_pdf_path = os.path.join(sample_dir, "trap_marketing_document.pdf")
@@ -288,13 +388,21 @@ if not os.path.exists(esg_pdf_path):
     generate_esg_pdf(esg_pdf_path)
 
 # ---------------------------------------------------------
-# Header & Hero Section
+# Hero Section
 # ---------------------------------------------------------
-st.title("🛡️ Truth Layer Enterprise: Automated Fact-Checking Agent")
+st.markdown('<div class="hero-title">🛡️ Truth Layer Enterprise</div>', unsafe_allow_html=True)
 st.markdown("""
-Executive slide decks, investment memorandums, and corporate whitepapers frequently contain **outdated metrics, hallucinated milestones, and inflated statistics**.
-**Truth Layer** automates the compliance lifecycle: extracting testable quantitative claims, cross-referencing against live web consensus, flagging liability risks with real-fact corrections, and producing C-suite audit certificates.
-""")
+<div class="hero-subtitle">
+Automated Pre-Publication Due-Diligence & Fact Gatekeeper. Reads PDF collateral, separates testable metrics 
+from marketing fluff, cross-references against live web consensus, and generates executive redline audits.
+</div>
+<div class="hero-pills">
+    <span class="hero-pill">⚡ Sub-5s Grounded Audit</span>
+    <span class="hero-pill">🌐 Dual-Mode Verification</span>
+    <span class="hero-pill">📝 Word-Style Track Changes</span>
+    <span class="hero-pill">🔒 SHA-256 Checksummed PDF</span>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # Input Methods (Tabs)
@@ -320,9 +428,9 @@ def _load_preset_file(file_path: str, display_name: str):
 
 with tab_upload:
     uploaded_file = st.file_uploader(
-        "Upload any PDF collateral (Marketing Deck, Whitepaper, Pitch Deck, Annual Report)", 
+        "Upload PDF collateral (Pitch Deck, Whitepaper, ESG Report, or Brief)", 
         type=["pdf"],
-        help="Upload any PDF to extract and audit verifiable factual claims."
+        help="Upload any PDF to extract and audit verifiable claims."
     )
     if uploaded_file is not None:
         if st.button("Extract Claims from Uploaded PDF", type="primary"):
@@ -338,41 +446,49 @@ with tab_upload:
                 st.rerun()
 
 with tab_presets:
-    st.markdown("Select an industry preset to test the agent with **1 click** (no PDF upload required):")
-    
+    st.markdown("Test the agent with **1 click** using realistic industry scenarios:")
     col_p1, col_p2, col_p3 = st.columns(3)
     
     with col_p1:
         st.markdown("""
-        **1. 📊 Assessment Trap Document**  
-        *Official CogCulture Benchmark*  
-        Tests outdated dates, GDP stats, fake founding history, and agency size exaggeration.
-        """)
-        if st.button("Load Trap Document", use_container_width=True):
+        <div class="preset-card">
+            <div style="font-size: 1.25rem; margin-bottom: 6px;">📊 <b>Assessment Trap Doc</b></div>
+            <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 12px;">
+                Official CogCulture Benchmark. Outdated GDP figures, ChatGPT 2021 date, fake founding history, and agency scale lies.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚀 Load Trap Document", key="btn_trap", use_container_width=True):
             _load_preset_file(trap_pdf_path, "trap_marketing_document.pdf")
 
     with col_p2:
         st.markdown("""
-        **2. 🦄 Series B Pitch Deck**  
-        *Venture Capital & Due Diligence*  
-        Tests $15T AI market exaggeration, fabricated DAU growth velocity, and founder history.
-        """)
-        if st.button("Load Pitch Deck", use_container_width=True):
+        <div class="preset-card">
+            <div style="font-size: 1.25rem; margin-bottom: 6px;">🦄 <b>Series B Pitch Deck</b></div>
+            <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 12px;">
+                Venture Due-Diligence. Exaggerated $15T AI market TAM, fabricated DAU growth velocity, and founder credentials.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚀 Load Pitch Deck", key="btn_pitch", use_container_width=True):
             _load_preset_file(pitch_pdf_path, "series_b_pitch_deck.pdf")
 
     with col_p3:
         st.markdown("""
-        **3. 🌱 Corporate ESG Audit**  
-        *Sustainability & Regulatory Claims*  
-        Tests greenwashing claims, retroactive net-zero milestones, and emission stats.
-        """)
-        if st.button("Load ESG Report", use_container_width=True):
+        <div class="preset-card">
+            <div style="font-size: 1.25rem; margin-bottom: 6px;">🌱 <b>Corporate ESG Audit</b></div>
+            <div style="font-size: 0.85rem; color: #94A3B8; margin-bottom: 12px;">
+                Regulatory & Sustainability. Greenwashing claims, retroactive net-zero milestones, and emissions figures.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚀 Load ESG Report", key="btn_esg", use_container_width=True):
             _load_preset_file(esg_pdf_path, "corporate_esg_audit.pdf")
 
 with tab_text:
     pasted_text = st.text_area(
         "Or paste raw copy, press releases, or claim statements directly:",
-        height=180,
+        height=160,
         placeholder="e.g., Tesla was founded in 2008 by Elon Musk. OpenAI ChatGPT reached 100 million active users in March 2021. Our digital ecosystem delivers unprecedented synergy..."
     )
     if st.button("Extract Claims from Text"):
@@ -388,7 +504,7 @@ with tab_text:
         else:
             st.warning("Please paste some text first.")
 
-st.markdown("---")
+st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # Document Extraction Overview & Claims Preview
@@ -397,35 +513,35 @@ if st.session_state.doc_summary and st.session_state.claims:
     summary: DocumentExtractionSummary = st.session_state.doc_summary
     claims = st.session_state.claims
 
-    st.subheader(f"📑 Document Extraction Summary: `{summary.filename}`")
+    st.markdown(f"#### 📑 Ingested Document: `{summary.filename}`")
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-value" style="color: #2563EB;">{summary.total_pages}</div>
-            <div class="metric-label">Pages Extracted</div>
+        <div class="metric-card-glass">
+            <div class="metric-num" style="color: #818CF8;">{summary.total_pages}</div>
+            <div class="metric-lbl">Pages Extracted</div>
         </div>
         """, unsafe_allow_html=True)
     with col2:
         st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-value" style="color: #0284C7;">{summary.total_sentences}</div>
-            <div class="metric-label">Sentences Parsed</div>
+        <div class="metric-card-glass">
+            <div class="metric-num" style="color: #38BDF8;">{summary.total_sentences}</div>
+            <div class="metric-lbl">Sentences Parsed</div>
         </div>
         """, unsafe_allow_html=True)
     with col3:
         st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-value" style="color: #16A34A;">{summary.total_claims_extracted}</div>
-            <div class="metric-label">Verifiable Claims</div>
+        <div class="metric-card-glass">
+            <div class="metric-num" style="color: #34D399;">{summary.total_claims_extracted}</div>
+            <div class="metric-lbl">Verifiable Claims</div>
         </div>
         """, unsafe_allow_html=True)
     with col4:
         st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-value" style="color: #9333EA;">{summary.total_characters:,}</div>
-            <div class="metric-label">Characters</div>
+        <div class="metric-card-glass">
+            <div class="metric-num" style="color: #C084FC;">{summary.total_characters:,}</div>
+            <div class="metric-lbl">Characters</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -433,9 +549,10 @@ if st.session_state.doc_summary and st.session_state.claims:
         st.text(st.session_state.raw_text[:2000] + ("..." if len(st.session_state.raw_text) > 2000 else ""))
 
     # Trigger Verification
+    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
     st.markdown("### 🚀 Execute Live Web Verification")
     st.write(
-        "Cross-reference every extracted metric, date, and figure against live web knowledge sources to classify into "
+        "Cross-reference every quantitative metric, timeline, and assertion against live web knowledge sources to classify into "
         "**Verified**, **Inaccurate (with real fact correction)**, or **False**."
     )
 
@@ -464,7 +581,7 @@ if st.session_state.doc_summary and st.session_state.claims:
         st.rerun()
 
 elif not st.session_state.doc_summary:
-    st.info("👈 Upload a PDF above or pick one of the **1-Click Industry Presets** to test the agent immediately.")
+    st.info("👈 Upload a PDF above or choose one of the **1-Click Industry Presets** to run an audit.")
 
 # ---------------------------------------------------------
 # Verification Results Dashboard
@@ -475,94 +592,97 @@ if st.session_state.report:
     doc_hash = hashlib.sha256(st.session_state.raw_text.encode('utf-8')).hexdigest()[:16]
 
     st.markdown("---")
-    st.header("📊 Truth Layer Fact-Check Dashboard")
-    st.caption(f"Verification Timestamp: {report.timestamp} | Engine: {report.engine_used} | Document Checksum: `SHA256:{doc_hash}`")
+    st.markdown("## 📊 Executive Fact-Check Dashboard")
+    st.caption(f"Verification Timestamp: {report.timestamp} | Engine: {report.engine_used} | Checksum: `SHA256:{doc_hash}`")
 
     # Executive Clearance Decision Banner
     if report.truth_score >= 80:
-        badge_style = "clearance-passed"
+        badge_style = "clearance-glow-passed"
         decision_label = "🟢 PASSED: CLEAR FOR PUBLICATION"
         decision_desc = "Document shows high factual integrity. Minor or no discrepancies identified."
+        score_color = "#34D399"
     elif report.truth_score >= 50:
-        badge_style = "clearance-conditional"
+        badge_style = "clearance-glow-conditional"
         decision_label = "🟡 CONDITIONAL: MANDATORY REVISION REQUIRED"
         decision_desc = f"Identified {report.inaccurate_count} outdated or shifted metrics. Review corrections before release."
+        score_color = "#FBBF24"
     else:
-        badge_style = "clearance-rejected"
+        badge_style = "clearance-glow-rejected"
         decision_label = "🔴 REJECTED: CRITICAL COMPLIANCE / LEGAL RISK"
         decision_desc = f"Identified {report.false_count} contradicted and {report.inaccurate_count} inaccurate claims. Do not publish."
+        score_color = "#F87171"
 
     st.markdown(f"""
-    <div class="clearance-banner {badge_style}">
+    <div class="clearance-glow-banner {badge_style}">
         <div>
-            <div style="font-size: 1.25rem; font-weight: 700;">{decision_label}</div>
-            <div style="font-size: 0.92rem; margin-top: 4px;">{decision_desc}</div>
+            <div style="font-size: 1.35rem; font-weight: 800; letter-spacing: -0.01em;">{decision_label}</div>
+            <div style="font-size: 0.94rem; color: #CBD5E1; margin-top: 4px;">{decision_desc}</div>
         </div>
-        <div style="text-align: right;">
-            <div style="font-size: 0.8rem; font-weight: 600; text-transform: uppercase;">Trust Index</div>
-            <div style="font-size: 2.2rem; font-weight: 800;">{report.truth_score}%</div>
+        <div style="text-align: right; min-width: 130px;">
+            <div style="font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94A3B8;">Trust Index</div>
+            <div style="font-size: 2.6rem; font-weight: 900; color: {score_color}; line-height: 1;">{report.truth_score}%</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Top KPI Metrics
+    # Top KPI Metrics Cards
     m1, m2, m3, m4, m5 = st.columns(5)
     with m1:
         st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-value" style="color: #334155;">{report.total_claims}</div>
-            <div class="metric-label">Total Claims</div>
+        <div class="metric-card-glass">
+            <div class="metric-num" style="color: #E2E8F0;">{report.total_claims}</div>
+            <div class="metric-lbl">Total Claims</div>
         </div>
         """, unsafe_allow_html=True)
     with m2:
         st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-value" style="color: #16A34A;">{report.verified_count}</div>
-            <div class="metric-label">Verified (Matches)</div>
+        <div class="metric-card-glass">
+            <div class="metric-num" style="color: #34D399;">{report.verified_count}</div>
+            <div class="metric-lbl">Verified (Accurate)</div>
         </div>
         """, unsafe_allow_html=True)
     with m3:
         st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-value" style="color: #D97706;">{report.inaccurate_count}</div>
-            <div class="metric-label">Inaccurate (Shifted)</div>
+        <div class="metric-card-glass">
+            <div class="metric-num" style="color: #FBBF24;">{report.inaccurate_count}</div>
+            <div class="metric-lbl">Inaccurate (Shifted)</div>
         </div>
         """, unsafe_allow_html=True)
     with m4:
         st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-value" style="color: #DC2626;">{report.false_count}</div>
-            <div class="metric-label">False (Contradicted)</div>
+        <div class="metric-card-glass">
+            <div class="metric-num" style="color: #F87171;">{report.false_count}</div>
+            <div class="metric-lbl">False (Contradicted)</div>
         </div>
         """, unsafe_allow_html=True)
     with m5:
-        score_color = "#16A34A" if report.truth_score >= 80 else ("#D97706" if report.truth_score >= 50 else "#DC2626")
         st.markdown(f"""
-        <div class="metric-container" style="border: 2px solid {score_color};">
-            <div class="metric-value" style="color: {score_color};">{report.truth_score}%</div>
-            <div class="metric-label">Trust Score</div>
+        <div class="metric-card-glass" style="border: 1.5px solid {score_color};">
+            <div class="metric-num" style="color: {score_color};">{report.truth_score}%</div>
+            <div class="metric-lbl">Overall Trust</div>
         </div>
         """, unsafe_allow_html=True)
 
-    # Status Distribution Progress Bar
+    # Multi-Color Proportional Progress Bar
     if report.total_claims > 0:
         pct_v = int((report.verified_count / report.total_claims) * 100)
         pct_i = int((report.inaccurate_count / report.total_claims) * 100)
         pct_f = 100 - pct_v - pct_i
         st.markdown(f"""
-        <div style="background-color: #E2E8F0; border-radius: 8px; height: 14px; width: 100%; display: flex; overflow: hidden; margin-top: 14px; margin-bottom: 24px;">
-            <div style="background-color: #22C55E; width: {pct_v}%; height: 100%;" title="Verified: {pct_v}%"></div>
+        <div style="background-color: rgba(255,255,255,0.07); border-radius: 9999px; height: 12px; width: 100%; display: flex; overflow: hidden; margin-top: 14px; margin-bottom: 24px;">
+            <div style="background-color: #10B981; width: {pct_v}%; height: 100%;" title="Verified: {pct_v}%"></div>
             <div style="background-color: #F59E0B; width: {pct_i}%; height: 100%;" title="Inaccurate: {pct_i}%"></div>
             <div style="background-color: #EF4444; width: {pct_f}%; height: 100%;" title="False: {pct_f}%"></div>
         </div>
         """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # Multi-View Results Exploration Tabs
+    # Multi-View Exploration Tabs
     # ---------------------------------------------------------
-    view_tab_claims, view_tab_redline, view_tab_telemetry = st.tabs([
+    view_tab_claims, view_tab_redline, view_tab_charts, view_tab_telemetry = st.tabs([
         "📋 Claim-by-Claim Inspection",
         "📝 Document Redline (Track Changes)",
+        "📊 Analytics & Visual Breakdown",
         "🏢 Enterprise ROI & Telemetry"
     ])
 
@@ -583,15 +703,11 @@ if st.session_state.report:
         with col_search:
             search_query = st.text_input("Search Claims or Entities", placeholder="e.g., ChatGPT, Tesla, GDP, Google...")
 
-        # Filtered Results Processing
         filtered_results = report.results
-
         if selected_status != "All Statuses":
             filtered_results = [r for r in filtered_results if r.status.value == selected_status]
-
         if selected_cat != "All Categories":
             filtered_results = [r for r in filtered_results if r.claim.category.value == selected_cat]
-
         if search_query.strip():
             q = search_query.lower()
             filtered_results = [
@@ -601,46 +717,46 @@ if st.session_state.report:
                 or q in r.explanation.lower()
             ]
 
-        st.markdown(f"**Showing {len(filtered_results)} of {report.total_claims} claims**")
+        st.caption(f"Showing **{len(filtered_results)}** of **{report.total_claims}** claims")
 
         for res in filtered_results:
             if res.status == ClaimStatus.VERIFIED:
-                badge_html = f'<span class="badge-verified">✅ VERIFIED</span>'
+                badge_html = f'<span class="badge-neon-verified">✅ VERIFIED</span>'
             elif res.status == ClaimStatus.INACCURATE:
-                badge_html = f'<span class="badge-inaccurate">⚠️ INACCURATE / OUTDATED</span>'
+                badge_html = f'<span class="badge-neon-inaccurate">⚠️ INACCURATE / SHIFTED</span>'
             else:
-                badge_html = f'<span class="badge-false">❌ FALSE / CONTRADICTED</span>'
+                badge_html = f'<span class="badge-neon-false">❌ FALSE / CONTRADICTED</span>'
 
             page_info = f"&middot; Page {res.claim.page_number}" if res.claim.page_number else ""
             category_info = f"&middot; {res.claim.category.value}"
 
             sources_html = ""
             if res.sources:
-                sources_html = "<div style='margin-top: 8px;'><b>Sources:</b> "
+                sources_html = "<div style='margin-top: 10px;'><b>Sources:</b> "
                 for s in res.sources:
-                    sources_html += f'<a href="{s.url}" target="_blank" class="source-pill">🔗 {s.title}</a>'
+                    sources_html += f'<a href="{s.url}" target="_blank" class="source-pill-dark">🔗 {s.title}</a>'
                 sources_html += "</div>"
             else:
-                sources_html = "<div style='margin-top: 6px; font-size: 0.8rem; color: #94A3B8;'><i>No external sources cited.</i></div>"
+                sources_html = "<div style='margin-top: 8px; font-size: 0.8rem; color: #64748B;'><i>No external links cited.</i></div>"
 
             correction_html = ""
             if res.correction:
                 correction_html = f"""
-                <div class="correction-box">
-                    <b>💡 Real Fact / Correction:</b><br/>{res.correction}
+                <div class="correction-box-glow">
+                    <b>💡 Verified Real Fact / Correction:</b><br/>{res.correction}
                 </div>
                 """
 
             st.markdown(f"""
-            <div class="claim-card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div>{badge_html} <span style="font-size: 0.85rem; color: #64748B; margin-left: 8px;">ID: <code>{res.claim.id}</code> {page_info} {category_info}</span></div>
+            <div class="claim-card-dark">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div>{badge_html} <span style="font-size: 0.82rem; color: #94A3B8; margin-left: 8px;">ID: <code>{res.claim.id}</code> {page_info} {category_info}</span></div>
                 </div>
-                <div class="claim-quote">"{res.claim.claim_text}"</div>
+                <div class="claim-text-title">"{res.claim.claim_text}"</div>
                 {correction_html}
-                <div class="evidence-box">
-                    <b>Verification Context & Evidence:</b> {res.explanation}
-                    <br/><span style="font-size: 0.85rem; color: #64748B;">{res.evidence_summary}</span>
+                <div class="evidence-box-dark">
+                    <b>Verification Context:</b> {res.explanation}
+                    <br/><span style="font-size: 0.85rem; color: #94A3B8;">{res.evidence_summary}</span>
                 </div>
                 {sources_html}
             </div>
@@ -651,87 +767,144 @@ if st.session_state.report:
     # ---------------------------------------------------------
     with view_tab_redline:
         st.markdown("""
-        **Document Track-Changes Redline View:**  
-        Inaccuracies and false claims are struck through with exact live corrections placed beside them:
+        **Executive Track-Changes Redline View:**  
+        Visual representation of required edits: unverified or outdated assertions are crossed out, with live verified corrections injected directly beside them.
         """)
         
-        # Build redline markup
         redline_content = []
         for res in report.results:
             if res.status == ClaimStatus.INACCURATE and res.correction:
                 item_html = (
                     f'<p><span class="redline-del">{res.claim.claim_text}</span> '
                     f'<span class="redline-ins">➔ Real Fact: {res.correction}</span> '
-                    f'<span style="font-size:0.8rem; color:#64748B;">(Pg {res.claim.page_number or 1})</span></p>'
+                    f'<span style="font-size:0.8rem; color:#94A3B8;">(Pg {res.claim.page_number or 1})</span></p>'
                 )
             elif res.status == ClaimStatus.FALSE:
                 item_html = (
                     f'<p><span class="redline-del">{res.claim.claim_text}</span> '
-                    f'<span style="background-color: #FEE2E2; color: #DC2626; font-weight:600; padding: 2px 6px; border-radius:4px;">'
+                    f'<span style="background-color: rgba(239, 68, 68, 0.25); color: #FCA5A5; font-weight:600; padding: 2px 8px; border-radius:6px; border: 1px solid rgba(239,68,68,0.5);">'
                     f'[CONTRADICTED: {res.explanation}]</span> '
-                    f'<span style="font-size:0.8rem; color:#64748B;">(Pg {res.claim.page_number or 1})</span></p>'
+                    f'<span style="font-size:0.8rem; color:#94A3B8;">(Pg {res.claim.page_number or 1})</span></p>'
                 )
             else:
                 item_html = (
                     f'<p><span class="redline-verified">✓ {res.claim.claim_text}</span> '
-                    f'<span style="font-size:0.8rem; color:#15803D;">(Verified Accurate)</span></p>'
+                    f'<span style="font-size:0.8rem; color:#34D399;">(Verified Accurate)</span></p>'
                 )
             redline_content.append(item_html)
 
         redline_html = "".join(redline_content)
         st.markdown(f"""
-        <div class="redline-doc-card">
-            <div style="font-weight: 700; font-size: 1.1rem; margin-bottom: 14px; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px;">
-                📄 Redline Markup: {summary.filename}
+        <div class="redline-canvas">
+            <div style="font-weight: 700; font-size: 1.15rem; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; color: #FFFFFF;">
+                📄 Document Redline Markup: {summary.filename}
             </div>
             {redline_html}
         </div>
         """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # TAB 3: Enterprise ROI & Operations Telemetry
+    # TAB 3: Analytics & Visual Breakdown (Altair Charts)
+    # ---------------------------------------------------------
+    with view_tab_charts:
+        st.markdown("### 📊 Visual Distribution & Credibility Analytics")
+        
+        chart_col1, chart_col2 = st.columns(2)
+
+        # 1. Verification Status Donut Chart
+        with chart_col1:
+            st.markdown("##### Verification Status Ratio")
+            status_df = pd.DataFrame([
+                {"Status": "Verified", "Count": report.verified_count},
+                {"Status": "Inaccurate", "Count": report.inaccurate_count},
+                {"Status": "False", "Count": report.false_count}
+            ])
+            status_df = status_df[status_df["Count"] > 0]
+            
+            donut_chart = alt.Chart(status_df).mark_arc(innerRadius=65, stroke="#0A0E1A", strokeWidth=2).encode(
+                theta=alt.Theta(field="Count", type="quantitative"),
+                color=alt.Color(
+                    field="Status",
+                    type="nominal",
+                    scale=alt.Scale(
+                        domain=["Verified", "Inaccurate", "False"],
+                        range=["#10B981", "#F59E0B", "#EF4444"]
+                    ),
+                    legend=alt.Legend(title="Status", orient="bottom")
+                ),
+                tooltip=["Status", "Count"]
+            ).properties(
+                height=280
+            ).configure_view(
+                strokeWidth=0
+            )
+            st.altair_chart(donut_chart, use_container_width=True)
+
+        # 2. Claim Category Distribution Bar Chart
+        with chart_col2:
+            st.markdown("##### Claims by Factual Category")
+            cat_counts = {}
+            for r in report.results:
+                cat = r.claim.category.value
+                cat_counts[cat] = cat_counts.get(cat, 0) + 1
+            
+            cat_df = pd.DataFrame([{"Category": k, "Count": v} for k, v in cat_counts.items()])
+            
+            cat_chart = alt.Chart(cat_df).mark_bar(cornerRadiusTopRight=6, cornerRadiusBottomRight=6).encode(
+                y=alt.Y("Category:N", sort="-x", title=None),
+                x=alt.X("Count:Q", title="Number of Claims"),
+                color=alt.value("#6366F1"),
+                tooltip=["Category", "Count"]
+            ).properties(
+                height=280
+            ).configure_view(
+                strokeWidth=0
+            )
+            st.altair_chart(cat_chart, use_container_width=True)
+
+    # ---------------------------------------------------------
+    # TAB 4: Enterprise ROI & Telemetry
     # ---------------------------------------------------------
     with view_tab_telemetry:
-        st.markdown("### 🏢 Executive Business Impact & Operational ROI")
+        st.markdown("### 🏢 Operational ROI & Risk Mitigation Telemetry")
         
-        # Calculate ROI
         analyst_minutes_saved = max(15, report.total_claims * 15)
         hours_saved = round(analyst_minutes_saved / 60, 1)
-        est_dollars_saved = int(hours_saved * 75)  # $75/hour compliance analyst cost
+        est_dollars_saved = int(hours_saved * 75)
         est_token_cost = "$0.004" if report.engine_used.startswith("Google") else "$0.000 (Open Source)"
 
         t1, t2, t3 = st.columns(3)
         with t1:
             st.markdown(f"""
-            <div class="metric-container">
-                <div class="metric-value" style="color: #2563EB;">{hours_saved} hrs</div>
-                <div class="metric-label">Human Review Saved</div>
-                <div style="font-size: 0.85rem; color: #64748B; margin-top: 6px;">~${est_dollars_saved} in labor cost</div>
+            <div class="metric-card-glass">
+                <div class="metric-num" style="color: #818CF8;">{hours_saved} hrs</div>
+                <div class="metric-lbl">Human Review Saved</div>
+                <div style="font-size: 0.85rem; color: #94A3B8; margin-top: 6px;">~${est_dollars_saved} in labor cost</div>
             </div>
             """, unsafe_allow_html=True)
         with t2:
             st.markdown(f"""
-            <div class="metric-container">
-                <div class="metric-value" style="color: #16A34A;">{est_token_cost}</div>
-                <div class="metric-label">Est. Compute Cost</div>
-                <div style="font-size: 0.85rem; color: #64748B; margin-top: 6px;">Sub-cent verification efficiency</div>
+            <div class="metric-card-glass">
+                <div class="metric-num" style="color: #34D399;">{est_token_cost}</div>
+                <div class="metric-lbl">Est. Compute Cost</div>
+                <div style="font-size: 0.85rem; color: #94A3B8; margin-top: 6px;">Sub-cent verification efficiency</div>
             </div>
             """, unsafe_allow_html=True)
         with t3:
             st.markdown(f"""
-            <div class="metric-container">
-                <div class="metric-value" style="color: #9333EA;">{report.total_claims} / {summary.total_sentences}</div>
-                <div class="metric-label">Claim Density Ratio</div>
-                <div style="font-size: 0.85rem; color: #64748B; margin-top: 6px;">Signal-to-marketing-fluff filter</div>
+            <div class="metric-card-glass">
+                <div class="metric-num" style="color: #C084FC;">{report.total_claims} / {summary.total_sentences}</div>
+                <div class="metric-lbl">Signal Density Ratio</div>
+                <div style="font-size: 0.85rem; color: #94A3B8; margin-top: 6px;">Subjective fluff filtered out</div>
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
         st.markdown("""
-        #### 🛡️ Compliance & Legal Risk Mitigation
-        - **Regulatory Exposure**: Eliminates unsubstantiated claims before distribution to regulatory bodies or investors.
-        - **Brand Equity Protection**: Prevents embarrassing public retractions on social media or in press releases.
-        - **Audit Reproducibility**: Generates an immutable cryptographic hash (`SHA-256`) of the verified document for internal compliance records.
+        #### 🛡️ Compliance & Governance Standards
+        - **Regulatory Gatekeeping**: Eliminates unsubstantiated claims before distribution to regulatory authorities or prospective investors.
+        - **Cryptographic Auditability**: Each verification embeds an immutable `SHA-256` checksum of the ingested document.
+        - **Deterministic Evidence**: All verifications require consensus from live web endpoints or verified encyclopedic references.
         """)
 
     # ---------------------------------------------------------
@@ -817,10 +990,10 @@ if st.session_state.report:
         )
 
 # ---------------------------------------------------------
-# Footer & Assessment Rubric Information
+# Footer
 # ---------------------------------------------------------
 st.markdown("---")
-with st.expander("ℹ️ About the Truth Layer Enterprise Verification Pipeline"):
+with st.expander("ℹ️ About the Truth Layer Enterprise Pipeline"):
     st.markdown("""
     ### Architectural Highlights:
     1. **PDF Text Stream & Normalization**:
