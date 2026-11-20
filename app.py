@@ -55,16 +55,31 @@ st.markdown("""
         max-width: 1280px;
     }
 
-    /* Gradient Hero Header */
+    /* Hero Header */
+    .hero-header-box {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 2px;
+        margin-bottom: 8px;
+    }
+    .hero-icon {
+        font-size: 2.5rem;
+        line-height: 1;
+        display: inline-block;
+        filter: drop-shadow(0 2px 8px rgba(99, 102, 241, 0.4));
+    }
     .hero-title {
-        font-size: 2.6rem;
+        font-size: 2.5rem;
         font-weight: 800;
-        letter-spacing: -0.03em;
-        background: linear-gradient(135deg, #FFFFFF 0%, #A5B4FC 50%, #818CF8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 6px;
-        line-height: 1.15;
+        letter-spacing: -0.02em;
+        color: #FFFFFF;
+        line-height: 1.2;
+        margin: 0;
+        padding: 0;
+    }
+    .hero-title-accent {
+        color: #818CF8;
     }
     .hero-subtitle {
         font-size: 1.05rem;
@@ -390,7 +405,12 @@ if not os.path.exists(esg_pdf_path):
 # ---------------------------------------------------------
 # Hero Section
 # ---------------------------------------------------------
-st.markdown('<div class="hero-title">🛡️ Truth Layer Enterprise</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="hero-header-box">
+    <span class="hero-icon">🛡️</span>
+    <span class="hero-title">Truth Layer <span class="hero-title-accent">Enterprise</span></span>
+</div>
+""", unsafe_allow_html=True)
 st.markdown("""
 <div class="hero-subtitle">
 Automated Pre-Publication Due-Diligence & Fact Gatekeeper. Reads PDF collateral, separates testable metrics 
