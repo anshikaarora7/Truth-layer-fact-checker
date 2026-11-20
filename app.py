@@ -48,9 +48,9 @@ st.markdown("""
         font-family: 'JetBrains Mono', monospace;
     }
 
-    /* Main Container Padding */
+    /* Main Container Padding - Ensure clearance under Streamlit fixed navbar */
     .block-container {
-        padding-top: 1.8rem;
+        padding-top: 4.8rem !important;
         padding-bottom: 3.5rem;
         max-width: 1280px;
     }
@@ -59,15 +59,27 @@ st.markdown("""
     .hero-header-box {
         display: flex;
         align-items: center;
-        gap: 14px;
-        margin-top: 2px;
-        margin-bottom: 8px;
+        gap: 16px;
+        margin-top: 4px;
+        margin-bottom: 12px;
     }
-    .hero-icon {
-        font-size: 2.5rem;
-        line-height: 1;
-        display: inline-block;
-        filter: drop-shadow(0 2px 8px rgba(99, 102, 241, 0.4));
+    .hero-logo-wrapper {
+        width: 52px;
+        height: 52px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(129, 140, 248, 0.08));
+        border: 1.5px solid rgba(129, 140, 248, 0.45);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.25);
+        flex-shrink: 0;
+    }
+    .hero-title-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
     }
     .hero-title {
         font-size: 2.5rem;
@@ -78,8 +90,15 @@ st.markdown("""
         margin: 0;
         padding: 0;
     }
-    .hero-title-accent {
-        color: #818CF8;
+    .hero-badge-tag {
+        background: linear-gradient(135deg, #6366F1, #4F46E5);
+        color: #FFFFFF;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        padding: 4px 10px;
+        border-radius: 6px;
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
     }
     .hero-subtitle {
         font-size: 1.05rem;
@@ -407,8 +426,16 @@ if not os.path.exists(esg_pdf_path):
 # ---------------------------------------------------------
 st.markdown("""
 <div class="hero-header-box">
-    <span class="hero-icon">🛡️</span>
-    <span class="hero-title">Truth Layer <span class="hero-title-accent">Enterprise</span></span>
+    <div class="hero-logo-wrapper">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L3 6V11.5C3 16.5 6.8 21.2 12 22.5C17.2 21.2 21 16.5 21 11.5V6L12 2Z" fill="#6366F1" fill-opacity="0.3" stroke="#818CF8" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M9 11.8L11 13.8L15.5 9.3" stroke="#34D399" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
+    <div class="hero-title-container">
+        <span class="hero-title">Truth Layer</span>
+        <span class="hero-badge-tag">ENTERPRISE</span>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 st.markdown("""
