@@ -1,6 +1,6 @@
 # 🛡️ Truth Layer Enterprise: Automated Fact-Checking & Pre-Publication Risk Gatekeeper
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://truth-layer-fact-checker.streamlit.app)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Production Ready](https://img.shields.io/badge/Deployment-Streamlit%20Cloud%20%7C%20Render-success.svg)]()
