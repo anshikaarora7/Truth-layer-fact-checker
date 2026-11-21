@@ -480,17 +480,24 @@ with tab_upload:
         help="Upload any PDF to extract and audit verifiable claims."
     )
     if uploaded_file is not None:
-        if st.button("Extract Claims from Uploaded PDF", type="primary"):
-            with st.spinner("Parsing PDF stream and extracting verifiable claims..."):
-                pdf_bytes = uploaded_file.read()
-                full_text, pages_data = DocumentExtractor.extract_from_pdf(pdf_bytes)
-                claims = ClaimExtractor.extract_claims_from_pages(pages_data)
-                summary = ClaimExtractor.summarize_extraction(uploaded_file.name, full_text, pages_data, claims)
-                st.session_state.doc_summary = summary
-                st.session_state.claims = claims
-                st.session_state.raw_text = full_text
-                st.session_state.report = None
-                st.rerun()
+        if st.button("Extract Claims from Uploaded PDF", type="primary", use_container_width=True):
+            try:
+                with st.spinner("Parsing PDF stream and extracting verifiable claims..."):
+                    uploaded_file.seek(0)
+                    pdf_bytes = uploaded_file.getvalue() if hasattr(uploaded_file, "getvalue") else uploaded_file.read()
+                    full_text, pages_data = DocumentExtractor.extract_from_pdf(pdf_bytes)
+                    if not full_text.strip():
+                        st.error("⚠️ No extractable text found in this PDF. It may be a scanned image or password-protected.")
+                    else:
+                        claims = ClaimExtractor.extract_claims_from_pages(pages_data)
+                        summary = ClaimExtractor.summarize_extraction(uploaded_file.name, full_text, pages_data, claims)
+                        st.session_state.doc_summary = summary
+                        st.session_state.claims = claims
+                        st.session_state.raw_text = full_text
+                        st.session_state.report = None
+                        st.rerun()
+            except Exception as e:
+                st.error(f"❌ Failed to extract PDF: {str(e)}")
 
 with tab_presets:
     st.markdown("Test the agent with **1 click** using realistic industry scenarios:")
@@ -556,9 +563,9 @@ st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 # ---------------------------------------------------------
 # Document Extraction Overview & Claims Preview
 # ---------------------------------------------------------
-if st.session_state.doc_summary and st.session_state.claims:
+if st.session_state.doc_summary is not None:
     summary: DocumentExtractionSummary = st.session_state.doc_summary
-    claims = st.session_state.claims
+    claims = st.session_state.claims or []
 
     st.markdown(f"#### 📑 Ingested Document: `{summary.filename}`")
     
@@ -595,9 +602,16 @@ if st.session_state.doc_summary and st.session_state.claims:
     with st.expander("🔍 View Raw Extracted Document Text Preview"):
         st.text(st.session_state.raw_text[:2000] + ("..." if len(st.session_state.raw_text) > 2000 else ""))
 
-    # Trigger Verification
-    st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
-    st.markdown("### 🚀 Execute Live Web Verification")
+    if len(claims) == 0:
+        st.warning(
+            f"⚠️ **0 Verifiable Claims Detected:** Extracted {summary.total_characters} characters and {summary.total_sentences} sentences across {summary.total_pages} page(s), "
+            "but no concrete factual metrics (numbers, dates, statistics, currencies) were detected. "
+            "Please check the raw text preview above or paste specific claims in the 'Direct Text Paste' tab."
+        )
+    else:
+        # Trigger Verification
+        st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
+        st.markdown("### 🚀 Execute Live Web Verification")
     st.write(
         "Cross-reference every quantitative metric, timeline, and assertion against live web knowledge sources to classify into "
         "**Verified**, **Inaccurate (with real fact correction)**, or **False**."

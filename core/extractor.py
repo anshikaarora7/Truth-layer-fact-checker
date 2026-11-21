@@ -19,17 +19,24 @@ class DocumentExtractor:
         Extract text page by page from a file-like object or bytes.
         Returns full text and a list of page dicts: [{'page_num': 1, 'text': '...'}]
         """
-        if isinstance(pdf_file_or_bytes, bytes):
-            reader = pypdf.PdfReader(io.BytesIO(pdf_file_or_bytes))
-        else:
-            reader = pypdf.PdfReader(pdf_file_or_bytes)
+        try:
+            if isinstance(pdf_file_or_bytes, bytes):
+                reader = pypdf.PdfReader(io.BytesIO(pdf_file_or_bytes))
+            else:
+                reader = pypdf.PdfReader(pdf_file_or_bytes)
+        except Exception as e:
+            # Fallback if corrupt or invalid PDF
+            return "", []
 
         pages_data = []
         full_text_parts = []
 
         for idx, page in enumerate(reader.pages):
-            page_text = page.extract_text() or ""
-            # Clean non-printable / control characters while preserving formatting
+            try:
+                page_text = page.extract_text() or ""
+            except Exception:
+                page_text = ""
+
             cleaned_text = DocumentExtractor._clean_text(page_text)
             if cleaned_text.strip():
                 pages_data.append({
@@ -48,10 +55,12 @@ class DocumentExtractor:
             return ""
         # Fix hyphenated words at line endings (e.g., "revo-\nlution" -> "revolution")
         text = re.sub(r'(\b\w+)-\s*\n\s*(\w+\b)', r'\1\2', text)
-        # Normalize multiple spaces and tabs to a single space
-        text = re.sub(r'[ \t]+', ' ', text)
-        # Normalize line endings
-        text = re.sub(r'\r\n|\r', '\n', text)
+        # Normalize carriage returns
+        text = text.replace('\r\n', '\n').replace('\r', '\n')
+        # Normalize non-breaking spaces and tabs
+        text = re.sub(r'[\t\xa0]+', ' ', text)
+        # Normalize multiple spaces (preserving newlines)
+        text = re.sub(r'[ ]{2,}', ' ', text)
         # Normalize excessive newlines
         text = re.sub(r'\n{3,}', '\n\n', text)
         return text.strip()
@@ -60,40 +69,51 @@ class DocumentExtractor:
     def split_into_sentences(text: str) -> List[str]:
         """
         Splits text into sentences carefully preserving numbers, abbreviations, and currencies.
-        Does not use variable-width lookbehinds for broad Python compatibility.
+        Supports sentences terminated by period, newline bullet points, or list markers.
         """
         if not text:
             return []
 
-        # Replace excessive whitespace
-        normalized = re.sub(r'\s+', ' ', text)
+        # Replace excessive whitespace within lines
+        lines = text.split('\n')
+        raw_chunks = []
+        for line in lines:
+            line_str = line.strip()
+            if not line_str:
+                continue
+            # If line starts with a bullet point or list marker, strip it
+            line_str = re.sub(r'^[•\-\*\u2022\u2023\u25E6\u2043\u2219]\s*', '', line_str)
+            line_str = re.sub(r'^\d+[\.\)]\s+', '', line_str)
+            if len(line_str) >= 12:
+                raw_chunks.append(line_str)
 
-        # Protect common abbreviations by temporarily tokenizing them
+        # In case text has continuous multi-sentence paragraphs, split them on terminal periods
+        clean_sentences = []
         abbrevs = [
             'e.g.', 'i.e.', 'Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Inc.',
             'Ltd.', 'Corp.', 'vs.', 'approx.', 'no.', 'Jan.', 'Feb.', 'Mar.',
             'Apr.', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'
         ]
-        temp = normalized
-        for i, abb in enumerate(abbrevs):
-            temp = temp.replace(abb, f"__ABB_{i}__")
 
-        # Protect decimal numbers (e.g., $1.8 or 3.9)
-        temp = re.sub(r'(\d+)\.(\d+)', r'\1__DOT__\2', temp)
-
-        # Split on sentence terminals followed by space
-        raw_parts = re.split(r'[.?!]+\s+', temp)
-
-        clean_sentences = []
-        for part in raw_parts:
-            # Restore tokens
-            restored = part.replace('__DOT__', '.')
+        for chunk in raw_chunks:
+            temp = chunk
             for i, abb in enumerate(abbrevs):
-                restored = restored.replace(f"__ABB_{i}__", abb)
-            s_clean = restored.strip()
-            # Ignore sentence fragments that are too short to be factual claims
-            if len(s_clean) >= 15:
-                clean_sentences.append(s_clean)
+                temp = temp.replace(abb, f"__ABB_{i}__")
+
+            # Protect decimal numbers (e.g. $1.8 or 3.9)
+            temp = re.sub(r'(\d+)\.(\d+)', r'\1__DOT__\2', temp)
+
+            # Split on terminal punctuation followed by space
+            sub_parts = re.split(r'[.?!]+\s+', temp)
+            for part in sub_parts:
+                restored = part.replace('__DOT__', '.')
+                for i, abb in enumerate(abbrevs):
+                    restored = restored.replace(f"__ABB_{i}__", abb)
+                s_clean = restored.strip()
+                # Remove leading/trailing bullet remnants
+                s_clean = re.sub(r'^[•\-\*\s]+', '', s_clean)
+                if len(s_clean) >= 12:
+                    clean_sentences.append(s_clean)
 
         return clean_sentences
 
@@ -107,11 +127,11 @@ class ClaimExtractor:
 
     # Patterns matching verifiable facts
     STAT_PATTERN = re.compile(
-        r'(\b\d+(\.\d+)?%\b|\b\d+(\.\d+)?\s*(percent|per\s*cent)\b|\b\d+x\b|\b\d+\s*out\s*of\s*\d+\b)',
+        r'(\b\d+(\.\d+)?%\b|\b\d+(\.\d+)?\s*(percent|per\s*cent)\b|\b\d+x\b|\b\d+\s*out\s*of\s*\d+\b|\b\d+([,\.]\d+)?\s*(users|customers|employees|countries|stores|downloads|subscribers|offices|members|people|clients|units)\b)',
         re.IGNORECASE
     )
     DATE_PATTERN = re.compile(
-        r'(\b(19|20)\d{2}\b|\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(st|nd|rd|th)?(,\s*(19|20)\d{2})?\b|\bin\s+(19|20)\d{2}\b|\bsince\s+(19|20)\d{2}\b)',
+        r'(\b(19|20)\d{2}\b|\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(st|nd|rd|th)?(,\s*(19|20)\d{2})?\b|\bin\s+(19|20)\d{2}\b|\bsince\s+(19|20)\d{2}\b|\bQ[1-4]\s*(19|20)?\d{2}\b)',
         re.IGNORECASE
     )
     FINANCIAL_PATTERN = re.compile(
@@ -119,7 +139,7 @@ class ClaimExtractor:
         re.IGNORECASE
     )
     TECHNICAL_PATTERN = re.compile(
-        r'(\b\d+(\.\d+)?\s*(GB|TB|MB|GHz|MHz|parameters|tokens|headcount|employees|active\s+users|MAU|DAU|downloads|customers|subscribers|miles|km|hours|kg|kWh)\b|\b(founded|headquartered|acquired|launched|released|invented|patented)\b)',
+        r'(\b\d+(\.\d+)?\s*(GB|TB|MB|GHz|MHz|parameters|tokens|headcount|active\s+users|MAU|DAU|miles|km|hours|kg|kWh|ppm)\b|\b(founded|headquartered|acquired|launched|released|invented|patented|announced)\b)',
         re.IGNORECASE
     )
 
@@ -150,17 +170,20 @@ class ClaimExtractor:
         if re.search(r'\b(author|confidential draft|table of contents|version\s*\d+|all rights reserved)\b', sentence, re.IGNORECASE):
             return False, None
 
-        # If sentence is pure fluff without concrete data, reject it
+        # Check fluff
         has_fluff = bool(cls.FLUFF_PATTERN.search(sentence))
-        
+
         # Check patterns in order of specificity
-        has_stat = bool(cls.STAT_PATTERN.search(sentence))
         has_financial = bool(cls.FINANCIAL_PATTERN.search(sentence))
-        has_date = bool(cls.DATE_PATTERN.search(sentence))
+        has_stat = bool(cls.STAT_PATTERN.search(sentence))
         has_technical = bool(cls.TECHNICAL_PATTERN.search(sentence))
+        has_date = bool(cls.DATE_PATTERN.search(sentence))
+
+        # Check if sentence has any numerical anchor (e.g. 100, 2021, $5M, 50%)
+        has_number = bool(re.search(r'\b\d+([,\.]\d+)?\b', sentence))
 
         # If it has fluff AND no numbers or concrete dates, reject
-        if has_fluff and not (has_stat or has_financial or has_date or has_technical):
+        if has_fluff and not (has_stat or has_financial or has_date or has_technical or has_number):
             return False, None
 
         if has_financial:
@@ -171,6 +194,9 @@ class ClaimExtractor:
             return True, ClaimCategory.TECHNICAL
         elif has_date:
             return True, ClaimCategory.DATE
+        elif has_number and not has_fluff:
+            # Fallback for numerical factual claims
+            return True, ClaimCategory.STATISTIC
 
         return False, None
 
@@ -190,7 +216,11 @@ class ClaimExtractor:
 
             for sentence in sentences:
                 cleaned_sent = sentence.strip()
-                # Skip duplicate sentences across pages
+                # Clean leading bullets
+                cleaned_sent = re.sub(r'^[•\-\*\s]+', '', cleaned_sent)
+                if len(cleaned_sent) < 15:
+                    continue
+
                 normalized = re.sub(r'\s+', ' ', cleaned_sent.lower())
                 if normalized in seen_sentences:
                     continue
