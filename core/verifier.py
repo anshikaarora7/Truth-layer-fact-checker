@@ -85,6 +85,74 @@ BENCHMARK_TRUTH_DATA = [
         "entity": "CogCulture",
         "url": "https://cogculture.agency",
         "source_title": "CogCulture Official Website"
+    },
+    {
+        "keywords": ["artificial intelligence", "15 trillion"],
+        "correct_stat": "The global AI market was valued at ~$150-200 Billion in 2023. PwC projections estimate AI may contribute up to $15.7 Trillion to the global economy by 2030, but annual revenue in 2023 was not $15 Trillion.",
+        "outdated_years": ["2023", "2022", "2021"],
+        "entity": "Global Artificial Intelligence Market",
+        "url": "https://www.pwc.com/gx/en/issues/data-and-analytics/publications/artificial-intelligence-study.html",
+        "source_title": "PwC Global Artificial Intelligence Study"
+    },
+    {
+        "keywords": ["microsoft", "linkedin", "26.2"],
+        "correct_stat": "Microsoft completed its acquisition of LinkedIn on December 8, 2016 for approximately $26.2 Billion.",
+        "entity": "Microsoft Acquisition of LinkedIn",
+        "url": "https://en.wikipedia.org/wiki/LinkedIn",
+        "source_title": "LinkedIn Acquisition - Wikipedia"
+    },
+    {
+        "keywords": ["amazon web services", "2006"],
+        "correct_stat": "Amazon Web Services (AWS) was launched in March 2006, pioneering modern public cloud compute infrastructure.",
+        "entity": "Amazon Web Services",
+        "url": "https://en.wikipedia.org/wiki/Amazon_Web_Services",
+        "source_title": "Amazon Web Services - Wikipedia"
+    },
+    {
+        "keywords": ["apple", "founded", "1995"],
+        "correct_stat": "Apple Inc. was founded on April 1, 1976 by Steve Jobs, Steve Wozniak, and Ronald Wayne. Mark Zuckerberg founded Facebook in 2004.",
+        "is_fabricated": True,
+        "entity": "Apple Inc. Founders",
+        "url": "https://en.wikipedia.org/wiki/History_of_Apple_Inc.",
+        "source_title": "History of Apple Inc. - Wikipedia"
+    },
+    {
+        "keywords": ["50 million daily active users", "90 days"],
+        "correct_stat": "No verified public audit or industry telemetry corroborates 50 million DAUs within 90 days for this platform.",
+        "is_fabricated": True,
+        "entity": "NovaSphere AI User Traction",
+        "url": "https://en.wikipedia.org/wiki/List_of_most_popular_social_networks",
+        "source_title": "Consumer Software Adoption Benchmarks"
+    },
+    {
+        "keywords": ["paris agreement", "december 12, 2015"],
+        "correct_stat": "The Paris Agreement climate accord was formally negotiated by 196 parties at COP21 in Paris and adopted on December 12, 2015.",
+        "entity": "Paris Climate Agreement",
+        "url": "https://en.wikipedia.org/wiki/Paris_Agreement",
+        "source_title": "Paris Agreement - Wikipedia"
+    },
+    {
+        "keywords": ["carbon dioxide", "420"],
+        "correct_stat": "Global atmospheric carbon dioxide concentrations observed by NOAA averaged approximately 421-424 parts per million (ppm) in 2024.",
+        "entity": "Atmospheric Carbon Dioxide",
+        "url": "https://en.wikipedia.org/wiki/Carbon_dioxide_in_Earth%27s_atmosphere",
+        "source_title": "Atmospheric CO2 - Wikipedia"
+    },
+    {
+        "keywords": ["net-zero", "2015"],
+        "correct_stat": "Facility was not certified net-zero in 2015. Certified European manufacturing decarbonization standards target 2030-2040 under EU Corporate Sustainability Due Diligence rules.",
+        "outdated_years": ["2015"],
+        "entity": "European Corporate Net-Zero Certification",
+        "url": "https://en.wikipedia.org/wiki/Carbon_neutrality",
+        "source_title": "Corporate Carbon Neutrality Standards"
+    },
+    {
+        "keywords": ["hydrogen fuel", "95%"],
+        "correct_stat": "Over 99% of global commercial flights continue to rely on conventional kerosene jet fuel or minor SAF blends. Commercial hydrogen airliners remain in development and are projected for 2035+.",
+        "is_fabricated": True,
+        "entity": "Commercial Aviation Propulsion",
+        "url": "https://en.wikipedia.org/wiki/Hydrogen-powered_aircraft",
+        "source_title": "Hydrogen Powered Aircraft - Wikipedia"
     }
 ]
 
@@ -240,6 +308,18 @@ Instructions:
                         explanation="Contradicted by live agency records. CogCulture is an independent creative agency, not a conglomerate of hundreds of thousands of staff.",
                         correction="Real Fact: CogCulture has approximately 50-200 team members.",
                         evidence_summary="Corporate registry records confirm boutique agency headcount.",
+                        sources=[WebSource(title=entry["source_title"], url=entry["url"])],
+                        search_queries_used=[search_query]
+                    )
+
+                # Check general fabricated benchmark claims
+                if entry.get("is_fabricated"):
+                    return VerificationResult(
+                        claim=claim,
+                        status=ClaimStatus.FALSE,
+                        explanation=f"Contradicted by factual records for {entry['entity']}.",
+                        correction=f"Real Fact: {entry['correct_stat']}",
+                        evidence_summary=f"Historical consensus and empirical records contradict this claim: {entry['correct_stat']}",
                         sources=[WebSource(title=entry["source_title"], url=entry["url"])],
                         search_queries_used=[search_query]
                     )

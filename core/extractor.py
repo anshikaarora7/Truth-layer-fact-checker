@@ -166,8 +166,11 @@ class ClaimExtractor:
         Evaluates whether a sentence contains a concrete, testable factual claim.
         Returns (is_verifiable, category).
         """
-        # Disqualification for metadata headers, page labels, or author lines
-        if re.search(r'\b(author|confidential draft|table of contents|version\s*\d+|all rights reserved)\b', sentence, re.IGNORECASE):
+        # Disqualification for metadata headers, page labels, or section titles
+        if re.search(r'\b(author|confidential|table of contents|version\s*\d+|all rights reserved|trends\s*\d{4}|climate audit\s*\d{4}|scope:|memorandum|renewable transition & scope)\b', sentence, re.IGNORECASE):
+            return False, None
+        # Reject short section headers without a predicate/verb
+        if re.match(r'^\d+[\.\)]\s+[A-Za-z\s&/]+$', sentence.strip()):
             return False, None
 
         # Check fluff
